@@ -12,6 +12,10 @@ import com.febrian.whatsappclone.databinding.ActivityOtpVerifyBinding
 import com.google.firebase.FirebaseException
 import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.*
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import java.util.concurrent.TimeUnit
 
 
@@ -106,6 +110,9 @@ class OtpVerifyActivity : AppCompatActivity() {
                             if (it.isSuccessful) {
                                 binding.progressBarVerify.visibility = View.VISIBLE
                                 binding.btnVerify.visibility = View.INVISIBLE
+
+                                registerUser()
+
                                 Toast.makeText(
                                     this@OtpVerifyActivity,
                                     "Welcome...",
@@ -128,6 +135,26 @@ class OtpVerifyActivity : AppCompatActivity() {
                         }
                 }
             }
+        }
+    }
+
+    private fun registerUser(){
+        val user = FirebaseAuth.getInstance().currentUser
+
+        if (user != null) {
+            val mUserDB = FirebaseDatabase.getInstance().reference.child("user").child(user.uid)
+            mUserDB.addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(dataSnapshot: DataSnapshot) {
+                    if (!dataSnapshot.exists()) {
+                        val userMap: MutableMap<String, Any?> = HashMap()
+                        userMap["phone"] = user.phoneNumber
+                        userMap["name"] = user.phoneNumber
+                        mUserDB.updateChildren(userMap)
+                    }
+                }
+
+                override fun onCancelled(databaseError: DatabaseError) {}
+            })
         }
     }
 

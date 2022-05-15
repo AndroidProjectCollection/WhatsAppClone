@@ -1,17 +1,16 @@
 package com.febrian.whatsappclone.ui.otp
 
+import android.content.ContentValues.TAG
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.febrian.whatsappclone.MainActivity
 import com.febrian.whatsappclone.databinding.ActivityOtpSendBinding
 import com.google.firebase.FirebaseException
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.PhoneAuthCredential
-import com.google.firebase.auth.PhoneAuthOptions
-import com.google.firebase.auth.PhoneAuthProvider
+import com.google.firebase.auth.*
 import java.util.concurrent.TimeUnit
 
 
@@ -59,7 +58,7 @@ class OtpSendActivity : AppCompatActivity() {
 
         mCallbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
             override fun onVerificationCompleted(phoneAuthCredential: PhoneAuthCredential) {
-
+                signInWithPhoneAuthCredential(phoneAuthCredential)
             }
 
             override fun onVerificationFailed(p0: FirebaseException) {
@@ -92,5 +91,24 @@ class OtpSendActivity : AppCompatActivity() {
             .setCallbacks(mCallbacks as PhoneAuthProvider.OnVerificationStateChangedCallbacks)
             .build()
         PhoneAuthProvider.verifyPhoneNumber(options)
+    }
+
+    private fun signInWithPhoneAuthCredential(credential: PhoneAuthCredential) {
+        mAuth.signInWithCredential(credential)
+            .addOnCompleteListener(this) { task ->
+                if (task.isSuccessful) {
+                    // Sign in success, update UI with the signed-in user's information
+                    Log.d(TAG, "signInWithCredential:success")
+
+                    val user = task.result?.user
+                } else {
+                    // Sign in failed, display a message and update the UI
+                    Log.w(TAG, "signInWithCredential:failure", task.exception)
+                    if (task.exception is FirebaseAuthInvalidCredentialsException) {
+                        // The verification code entered was invalid
+                    }
+                    userIsLoggedIn()
+                }
+            }
     }
 }
