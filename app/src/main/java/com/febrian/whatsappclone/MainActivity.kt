@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.facebook.drawee.backends.pipeline.Fresco
 import com.febrian.whatsappclone.data.Chat
 import com.febrian.whatsappclone.databinding.ActivityMainBinding
 import com.febrian.whatsappclone.ui.chat.ChatListAdapter
@@ -28,6 +29,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        Fresco.initialize(this)
 
         binding.findUser.setOnClickListener {
             startActivity(Intent(applicationContext, FindUserActivity::class.java))
