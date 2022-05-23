@@ -18,7 +18,6 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import java.util.concurrent.TimeUnit
 
-
 class OtpVerifyActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityOtpVerifyBinding

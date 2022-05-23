@@ -1,6 +1,7 @@
 package com.febrian.whatsappclone.ui.chat
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -8,13 +9,22 @@ import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.febrian.whatsappclone.MessageService
+import com.febrian.whatsappclone.api.ApiConfig
 import com.febrian.whatsappclone.data.Message
+import com.febrian.whatsappclone.data.NotificationData
+import com.febrian.whatsappclone.data.PushNotification
 import com.febrian.whatsappclone.databinding.ActivityChatBinding
 import com.febrian.whatsappclone.ui.chat.media.MediaAdapter
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
+const val TOPIC = "/topics/myTopic2"
 
 class ChatActivity : AppCompatActivity() {
 
@@ -31,7 +41,7 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var messageAdapter: MessageAdapter
     private lateinit var mediaAdapter: MediaAdapter
 
-    var totalMediaUploaded = 0
+    private var totalMediaUploaded = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,16 +52,30 @@ class ChatActivity : AppCompatActivity() {
 
         mChatDb = FirebaseDatabase.getInstance().reference.child("chat").child(chatID)
 
+        initializeNotification()
+
         binding.send.setOnClickListener {
+            if (binding.message.text.isEmpty()) return@setOnClickListener
             sendMessage()
+            pushNotification()
         }
         binding.addMedia.setOnClickListener {
             openGallery()
         }
-
         initializeMessage()
         initializeMedia()
         getChatMessages()
+    }
+
+    private fun initializeNotification() {
+        MessageService.sharedPref = getSharedPreferences("sharedPref", Context.MODE_PRIVATE)
+        FirebaseMessaging.getInstance().token.addOnSuccessListener {
+            MessageService.token = it
+
+            Log.d("Token", it)
+
+        }
+        FirebaseMessaging.getInstance().subscribeToTopic(TOPIC)
     }
 
     private fun openGallery() {
@@ -149,29 +173,55 @@ class ChatActivity : AppCompatActivity() {
                 val uploadTask = filePath.putFile(Uri.parse(mediaUri))
                 uploadTask.addOnSuccessListener {
                     filePath.downloadUrl.addOnSuccessListener {
-                        newMessageMap["/media/" + listMediaId[totalMediaUploaded] + "/"] = it.toString()
+                        newMessageMap["/media/" + listMediaId[totalMediaUploaded] + "/"] =
+                            it.toString()
 
-                        totalMediaUploaded++ 
+                        totalMediaUploaded++
                         if (totalMediaUploaded == listMedia.size)
-                            updateDatabaseWithNewMessage(newMessageDb, newMessageMap) 
+                            updateDatabaseWithNewMessage(newMessageDb, newMessageMap)
                     }
                 }
             }
         } else {
             if (binding.message.text.toString().isNotEmpty())
-                updateDatabaseWithNewMessage(newMessageDb, newMessageMap) 
+                updateDatabaseWithNewMessage(newMessageDb, newMessageMap)
         }
     }
+
+    private fun pushNotification() {
+
+        PushNotification(
+            NotificationData("New Message", "New Message"),
+            MessageService.token.toString()
+        ).also {
+            sendNotification(it)
+        }
+
+    }
+
+    private fun sendNotification(notification: PushNotification) =
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = ApiConfig.api.postNotification(notification)
+                if (response.isSuccessful) {
+                    Log.d("TAG", "Response: ${response}")
+                } else {
+                    Log.e("TAG", response.errorBody().toString())
+                }
+            } catch (e: Exception) {
+                Log.e("TAG", e.toString())
+            }
+        }
 
     private fun updateDatabaseWithNewMessage(
         newMessageDb: DatabaseReference,
         newMessageMap: MutableMap<String, Any>
     ) {
-        newMessageDb.updateChildren(newMessageMap) 
-        binding.message.text = null 
+        newMessageDb.updateChildren(newMessageMap)
+        binding.message.text = null
         listMedia.clear()
-        listMediaId.clear() 
-        totalMediaUploaded = 0 
+        listMediaId.clear()
+        totalMediaUploaded = 0
         mediaAdapter.notifyDataSetChanged()
     }
 
